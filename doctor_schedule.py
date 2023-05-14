@@ -4,26 +4,7 @@ from datetime import datetime, timedelta
 import numpy as np
 import math
 import pulp
-
-class Card:
-    def __init__(self, machine, date, machine_idx):
-        self.machine = machine
-        self.date = date
-        self.machine_idx = machine_idx
-        self.exclusion_cards = []  # 排斥的 card 列表：对于归属于同一个Doctor的cards，以card_1和card_2为例表示两两关系，不允许card_1的exclusion_cards中包括card_2
-
-    def __repr__(self):
-        machine_name=self.machine.replace("夜班", "----夜班")
-        if self.date.weekday in (5, 6):
-            return f"{machine_name}: 24小时{self.formatted_date}"
-        else:
-            return f"{machine_name}: {self.formatted_date}"
-
-    @property
-    def formatted_date(self):
-        weekday_names = {1: "一", 2: "二", 3: "三", 4: "四", 5: "五", 6: "六", 7: "日"}
-        return f"{self.date.month}月{self.date.day}日 星期{weekday_names[(self.date.weekday() % 7) + 1]}"
-
+from doctor_card import Card
 class Scheduler:
     def __init__(self, start_date_str, end_date_str, machine_names, doctors):
         self.start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
@@ -36,13 +17,18 @@ class Scheduler:
             date_list.append(current_date)
             current_date += timedelta(days=1)
         all_cards = []
+        _machine_name="门3 880"
         for date in date_list:
             if date.weekday() in (5, 6):
                 machine = "夜班"
                 all_cards.append(Card(machine, date, machine_names.index(machine)))
             else:
                 for machine in self.machine_names:
+                    if machine == "介入 702" or machine == _machine_name: continue
                     all_cards.append(Card(machine, date, machine_names.index(machine)))
+        all_cards.append(
+            Card(_machine_name, date_list[min(5, len(date_list))], machine_names.index(_machine_name))
+        )
         for card in all_cards:
             self.fill_exclusion_cards(card, all_cards)
         self.all_cards = all_cards
@@ -150,7 +136,7 @@ machine_names = [
     "门4 DD70", 
     "门3 声科", 
     "门1 Q7", 
-    # "介入 702", 
+    "介入 702", 
     "门5", 
     "Q5", 
     "床边", 
@@ -158,7 +144,7 @@ machine_names = [
     "701连班", 
     "开立", 
     "介入 s3000", 
-    # "门3 880"
+    "门3 880"
 ]
 doctor_list = ['谭', '马', '储', '齐', '晶', '孙', '鲍', '月', '郭', '娜', '婷', '爽', '王', '陈']
 
@@ -167,10 +153,5 @@ scheduler = Scheduler(start_date_str, end_date_str, machine_names, doctor_list)
 
 assignments = scheduler.make_assignments()
 
-# for assignment in sorted(assignments, key=lambda x: (x['card'].date, x['card'].machine_idx)):
-#     print(assignment)
-
-# for assignment in sorted(assignments, key=lambda x: (x['doctor'], x['card'].date)):
-#     print(assignment)
 import pickle, pathlib
 pickle.dump(assignments, pathlib.Path("./result.pkl").open('wb'))
